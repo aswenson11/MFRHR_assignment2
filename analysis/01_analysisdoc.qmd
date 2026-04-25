@@ -1,0 +1,42 @@
+---
+title: "Analysis"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(modelsummary)
+library(knitr)
+cohort <- read.csv("/Users/andrewswenson/r/code/mfrhr/Assignment2/raw-data/cohort.csv")
+
+```
+
+First, I want to understand what the smoke variable is because it isn't clear by the variable name. From this plot we can see that the percentage of people in a certain age group with age = 1 is not increasing with age. From this I conclude that this variable measures whether an individual is a current smoker and not whether an individual has ever smoked
+
+```{r}
+#| echo: false
+
+cohort_age_sum <- cohort %>% group_by(age) %>% summarise(smoke_mean = mean(smoke))
+age_smoke_line_plot <- ggplot(cohort_age_sum, aes(x=age, y=smoke_mean,
+  xlab="Age", ylab="'smoke' percentage")) + 
+  geom_line( color="grey") +
+    geom_point(shape=21, color="black", fill="#69b3a2", size=6) +
+    ggtitle("'Smoke' percentage by age group")
+age_smoke_line_plot
+```
+
+Second, I want to investigate whether its possible that this study tracks one same-age cohort throughout time. Based on the data set name I think it might. It'll be quite hard to see this, but one way I can see whether this is true is if there is weakly less people at each age during the period. To do this I create a long table we can easily read off. I clearly see that this is not the case, so I can likely treat these as separate individuals all sampled at once.
+
+```{r}
+age_counts <- cohort %>% count(age)
+
+kable(age_counts, format = "markdown")
+```
+
+Third, I'll look at whether smoking increases medical costs more in young or old individuals. To do this I run a regression of smoking costs on smoking level. I find that, while it looks like while smoking and age both clearly increase costs, it doesn't look like the interaction between age and smoking status has any impact on costs after controlling for smoking and age specific effects.
+
+```{r}
+modelsummary(lm(cost ~ smoke + age + smoke*age, cohort))
+
+```
