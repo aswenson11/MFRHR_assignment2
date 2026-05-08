@@ -40,3 +40,5 @@ Third, I'll look at whether smoking increases medical costs more in young or old
 modelsummary(lm(cost ~ smoke + age + smoke*age, cohort))
 
 ```
+
+

@@ -1,0 +1,89 @@
+---
+title: "Assignment 4: Reproducible Report"
+author: "Andrew Swenson"
+format: pdf
+---
+# Introduction  
+
+In this project, I originally aimed to investigate the relationship between age, smoking status, and medical costs. One could imagine that smoking increases medical costs more at older ages than at younger ages because older individuals have frailer bodies. One could also imagine that older smoker's bodies are more used to smoking, and thus smoking could increase costs more for younger individuals. Although this an interesting and meaningful question, I was unfortunately unable to make much progress on it because of the lack of data documentation in the dataset I was using. I therefore spend the majority of this project completing data investigations to determine the meaning of variables.
+
+At the conclusion of this report, I find evidence that age has no discernible effect on the relationship between smoking and medical costs, but because of the uncertainty around the structure of the dataset, this evidence should not be relied upon. 
+```{r}
+#| echo: false
+#| output: false
+library(tidyverse)
+library(modelsummary)
+library(knitr)
+cohort <- read.csv("/Users/andrewswenson/r/code/mfrhr/Assignment2/raw-data/cohort.csv")
+
+```
+
+
+# Methods
+
+## Data investigations 
+For this project I will work with the "cohort.csv" data. Sadly, this data has absolutely no documentation. Therefore, the majority of analysis I do here will be aimed at answering the question "what is this data" rather than "what can this data tell us." So, essentially, this entire analysis is the result of  bad documentation. If the documentation was better, I would be able to do real analysis here, but unfortunately I am left with simply trying to understand this data. Ultimately I will not be able to confidently conclude anything about this data because of the lack of documentation, and thus this analysis should be viewed as exploratory. With that in mind, here are some of the data investigations I will run:
+
+1. I will investigate whether its possible that this study tracks one same-age cohort throughout time. Based on the data set name ("cohort") I think it might. It'll be quite hard to see this, but one way I can see whether this is true is to test whether there are weakly less people at each age in this dataset, to test this I will plot counts at different ages.
+2. I will test for differences in smoking rates between younger and older individuals in the data to test whether the "smoke" variable here indicates whether an individual has *ever* smoked or whether that individual *currently* smokes. If this variable indicates whether an individual ever smoked, we would expect it to rise nearly monotonically with age because older individuals have more potential years to smoke. If "smoke" does not clearly rise with age, then we can conclude that this variable indicates current smoking. Of course, its possible that smoking rates in younger generations is sufficiently higher to outweigh this effect, but given that smoking has decreased overtime in the United States this seems unlikely.[^1]
+3. I investigate whether the "costs" variable counts total medical costs or costs for a specific procedure by checking the spread in costs. If costs have very small variance, its likely that these costs are for a specific procedure, since we would expect costs to vary substantially between different ages and indviduals. 
+
+[^1]: https://www.cdc.gov/nchs/hus/topics/tobacco-use.htm
+
+## Regression 
+After performing the above data investigations, I will look at whether smoking increases costs more in young or old individuals. To do this I run a regression of smoking costs on smoking level. The specific model I specify is $$ Cost = \alpha + \beta_1*age + \beta_2*smoke + \beta_3*(age*smoke) + \epsilon $$
+
+
+
+# Results 
+
+## Data investigations 
+
+First, I present the results of my data investigation testing whether this data tracks individuals over time or is a cross section of individuals at a certain point in time.  As you can see by the chart below, there is clearly differences in the number of observations by age. One could argue that this would be expected even with cohort data because people could leave the sample, but this would indicate that number of observations would be strictly decreasing by age, which we clearly don't see. Of course, there is still the potential that this tracks individuals over time, but individuals are just sampled at different initial ages- this possibility is nearly impossible to test (we could imagine nearly any sample coming from this DGP), so we will proceed as if this data is cross sectional. 
+
+```{r}
+age_counts <- cohort %>% count(age)
+
+age_smoke_line_plot <- ggplot(cohort, aes(x=age)) + 
+  geom_bar()  +
+    ggtitle("'Smoke' percentage by age group")
+age_smoke_line_plot
+
+
+```
+Next, I investigate whether smoking rates decrease with age. In the chart below, I plot the percentage of individuals that have smoke = 1 at each age. As we can see from the chart below, likelihood of smoking doesn't neatly increase with age. Therefore, I conclude that "smoke" indicates whether an individual currently smokes and not whether they have ever smoked.
+
+
+```{r}
+
+cohort_age_sum <- cohort %>% group_by(age) %>% summarise(smoke_percentage = mean(smoke))
+age_smoke_line_plot <- ggplot(cohort_age_sum, aes(x=age, y=smoke_percentage,
+  xlab="Age", ylab="'smoke' percentage")) + 
+    geom_point(shape=21, color="black", fill="#69b3a2", size=6) +
+    ggtitle("'Smoke' percentage by age group")
+age_smoke_line_plot
+```
+
+Now, I go on to see whether this is a representative population in terms of medical costs. To do this, I simply take the five number summary of medical costs plus the mean. Below we see that the minimum of the cost variable is \$8,012, which is unrealistically high if we interpret this cost variable as yearly medical costs. Conversely, the max value \$11,370 is unrealistically low. Over a sample of 5,000 individuals, including  both young and old individuals, we would expect a much wider spread of medical costs (with some young individuals nearing \$0 and some old individuals having extremely high costs). Therefore, it is unlikely that this variable indicates total medical costs. Instead, I hypothesize that this may be costs for a single procedure that all of these individuals had.  
+
+```{r}
+summary(cohort$cost)
+
+```
+
+Finally, I look at whether smoking increases medical costs more in young or old individuals. Based on the following regression with smoke, age and smoke*age interaction variables I find that, while it looks like while smoking and age both clearly increase costs (both are far over 10 standard deviations away from 0) it doesn't look like the interaction between age and smoking status has any impact on costs after controlling for smoking and age specific effects (it is less than 1 standard deviation away from 0). 
+
+```{r}
+modelsummary(lm(cost ~ smoke + age + smoke*age, cohort), output = "kableExtra")
+
+```
+
+# Discussion 
+
+This report is primarily a warning about having good data documentation rather a true data analysis. Although my regression results could potentially be seen as indicating that smoking and age increase medical costs, but smoking doesn't increase medical costs any more at older ages versus younger ages, these findings are not meaningful because I was unable to define what "smoking" or "cost" even means, and I was unable to determine how this sample was selected. 
+
+I believe the primary contribution of this report is that future users of this dataset may be able to build on the data investigations I used here to better understand the dataset. First, I have found that this dataset likely does *not* follow a specific cohort over time (despite the dataset name). Second, I have found that "smoke" is more likely to count point-in-time smoking rather than whether an individual has ever smoked over their lifetime. Third, I have found that the "cost" variable likely does not count total medical costs, but is instead likely costs for some procedure or specific event with fairly low cost variation. 
+
+Despite these advances, much uncertainty remains. For instance, I did no investigation here on the "cardiac" variable. Also, my core assumption that this dataset is about cigarette smoking and medical costs could be entirely wrong.
+
+I suggest furture researchers stay tuned to the June 2nd class of HRP 203, as it is likely that Sherri Rose will reveal the true nature of this data in that class. 
